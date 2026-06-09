@@ -47,3 +47,55 @@ class UserServices {
       return null;
     });
   }
+
+  Future<bool> isAdmin(String uid) async {
+    try {
+      final user = await getUser(uid);
+      return user?.role == 'admin';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<void> setUserAsAdmin(String uid) async {
+    try {
+      await _firestore.collection('users').doc(uid).update({'role': 'admin'});
+    } catch (e) {
+      throw Exception('Gagal mengubah role user: $e');
+    }
+  }
+
+  Future<void> updateUserProfile({
+    required String uid,
+    required String displayName,
+    Uint8List? photoBytes,
+  }) async {
+    try {
+      String photoUrl = '';
+
+      if (photoBytes != null) {
+        String fileName = 'profile_$uid';
+        Reference ref = _storage.ref().child('profile_photos').child(fileName);
+        await ref.putData(
+          photoBytes,
+          SettableMetadata(contentType: 'image/jpeg'),
+        );
+        photoUrl = await ref.getDownloadURL();
+      }
+
+      await _firestore.collection('users').doc(uid).update({
+        'displayName': displayName,
+        if (photoUrl.isNotEmpty) 'photoUrl': photoUrl,
+      });
+
+      if (_auth.currentUser?.uid == uid) {
+        await _auth.currentUser?.updateDisplayName(displayName);
+        if (photoUrl.isNotEmpty) {
+          await _auth.currentUser?.updatePhotoURL(photoUrl);
+        }
+      }
+    } catch (e) {
+      throw Exception('Gagal update profil: $e');
+    }
+  }
+}
