@@ -69,6 +69,183 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<String> _getCurrentUserName() async {
+    final authUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    if (authUser == null) return 'Pengguna';
+
+    final appUser = await _userServices.getUser(authUser.uid);
+    if (appUser?.displayName.trim().isNotEmpty == true) {
+      return appUser!.displayName.trim();
+    }
+    if (authUser.displayName?.trim().isNotEmpty == true) {
+      return authUser.displayName!.trim();
+    }
+    if (authUser.email?.trim().isNotEmpty == true) {
+      return authUser.email!.trim();
+    }
+    return 'Pengguna';
+  }
+
+  Future<void> _openComments(Post post) async {
+    final commentController = TextEditingController();
+    var isSending = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            Future<void> submitComment() async {
+              final text = commentController.text.trim();
+              if (text.isEmpty || isSending) return;
+
+              setModalState(() => isSending = true);
+              try {
+                final userName = await _getCurrentUserName();
+                await _postServices.addComment(
+                  post.id,
+                  _currentUserId,
+                  userName,
+                  text,
+                );
+                commentController.clear();
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Gagal menambah komentar: $e')),
+                );
+              } finally {
+                if (context.mounted) {
+                  setModalState(() => isSending = false);
+                }
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.7,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Komentar',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          tooltip: 'Tutup',
+                          onPressed: () => Navigator.pop(sheetContext),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: StreamBuilder<Post?>(
+                        stream: _postServices.getPostStream(post.id),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          final comments =
+                              snapshot.data?.comments ?? post.comments;
+                          if (comments.isEmpty) {
+                            return const Center(
+                              child: Text('Belum ada komentar.'),
+                            );
+                          }
+
+                          return ListView.separated(
+                            itemCount: comments.length,
+                            separatorBuilder: (context, index) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final comment = comments[index];
+                              final canDelete =
+                                  comment.userId == _currentUserId ||
+                                  post.adminId == _currentUserId;
+
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  comment.userName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                subtitle: Text(comment.text),
+                                trailing: canDelete
+                                    ? IconButton(
+                                        icon: const Icon(Icons.delete_outline),
+                                        tooltip: 'Hapus komentar',
+                                        onPressed: () => _postServices
+                                            .deleteComment(post.id, index),
+                                      )
+                                    : null,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: commentController,
+                            minLines: 1,
+                            maxLines: 3,
+                            textInputAction: TextInputAction.send,
+                            decoration: const InputDecoration(
+                              hintText: 'Tulis komentar...',
+                              border: OutlineInputBorder(),
+                            ),
+                            onSubmitted: (_) => submitComment(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          icon: isSending
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.send),
+                          tooltip: 'Kirim komentar',
+                          onPressed: isSending ? null : submitComment,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    commentController.dispose();
+  }
+
   Widget _buildStats(Post post) {
     return Row(
       children: [
@@ -237,7 +414,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.comment_outlined,
                       label: 'Komentar',
                       color: Colors.grey,
-                      onTap: () => _openDetail(post),
+                      onTap: () => _openComments(post),
                     ),
                     _buildActionButton(
                       icon: Icons.map_outlined,
