@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1094871194290",
+    "firebase_url": "https://bowlingfinder-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "bowlingfinder",
+    "storage_bucket": "bowlingfinder.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1094871194290:android:8b04531482773e7f8dc7ab",
+        "android_client_info": {
+          "package_name": "com.example.bowling"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUDoASHa8qD4OuA7vQsKECLk13NGHaDxI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
