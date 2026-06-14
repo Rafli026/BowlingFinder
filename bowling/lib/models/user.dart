@@ -6,6 +6,7 @@ class AppUser {
   final DateTime createdAt;
   final String displayName;
   final String photoUrl;
+  final String photoBase64;
 
   AppUser({
     required this.id,
@@ -14,6 +15,7 @@ class AppUser {
     required this.createdAt,
     this.displayName = '',
     this.photoUrl = '',
+    this.photoBase64 = '',
   });
 
   Map<String, dynamic> toMap() {
@@ -23,6 +25,7 @@ class AppUser {
       'createdAt': createdAt.toIso8601String(),
       'displayName': displayName,
       'photoUrl': photoUrl,
+      'photoBase64': photoBase64,
     };
   }
 
@@ -36,6 +39,7 @@ class AppUser {
       ),
       displayName: map['displayName'] ?? '',
       photoUrl: map['photoUrl'] ?? '',
+      photoBase64: map['photoBase64'] ?? '',
     );
   }
 }

@@ -249,23 +249,22 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildStats(Post post) {
     return Row(
       children: [
-        Expanded(
-          child: Text(
-            '${post.likes.length} Suka',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+        _StatPill(
+          icon: Icons.favorite,
+          label: '${post.likes.length}',
+          color: const Color(0xFFE53935),
         ),
-        Expanded(
-          child: Text(
-            '${post.favorites.length} Favorit',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+        const SizedBox(width: 8),
+        _StatPill(
+          icon: Icons.star,
+          label: '${post.favorites.length}',
+          color: const Color(0xFFFFB300),
         ),
-        Expanded(
-          child: Text(
-            '${post.comments.length} Komentar',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
-          ),
+        const SizedBox(width: 8),
+        _StatPill(
+          icon: Icons.chat_bubble_outline,
+          label: '${post.comments.length}',
+          color: const Color(0xFF1E88E5),
         ),
       ],
     );
@@ -277,12 +276,12 @@ class _HomeScreenState extends State<HomeScreen> {
     required VoidCallback onTap,
     Color? color,
   }) {
-    return TextButton.icon(
+    return FilledButton.tonalIcon(
       onPressed: onTap,
       icon: Icon(icon, size: 18, color: color),
       label: Text(label),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         visualDensity: VisualDensity.compact,
       ),
     );
@@ -317,10 +316,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBrokenImage() {
-    return const SizedBox(
-      height: 200,
-      child: Center(
-        child: Icon(Icons.broken_image, size: 60, color: Colors.grey),
+    return const ColoredBox(
+      color: Color(0xFF26242D),
+      child: SizedBox(
+        height: 200,
+        child: Center(
+          child: Icon(Icons.broken_image, size: 60, color: Colors.grey),
+        ),
       ),
     );
   }
@@ -329,55 +331,66 @@ class _HomeScreenState extends State<HomeScreen> {
     final isAdmin = _currentUserId == post.adminId;
     final isLiked = post.likes.contains(_currentUserId);
     final isFavorited = post.favorites.contains(_currentUserId);
+    final theme = Theme.of(context);
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.55),
+        ),
+      ),
       child: InkWell(
         onTap: () => _openDetail(post),
         child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-            ),
-            child: _buildPostImage(post),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            post.description,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
+                _buildPostImage(post),
+                Positioned(
+                  top: 12,
+                  left: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 7,
                     ),
-                    if (isAdmin)
-                      PopupMenuButton<String>(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.62),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.sports_score, size: 16, color: Colors.white),
+                        SizedBox(width: 6),
+                        Text(
+                          'Arena Bowling',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (isAdmin)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.58),
+                        shape: BoxShape.circle,
+                      ),
+                      child: PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert, color: Colors.white),
                         onSelected: (value) {
                           if (value == 'delete') {
                             _confirmDelete(post);
@@ -387,53 +400,268 @@ class _HomeScreenState extends State<HomeScreen> {
                           PopupMenuItem(value: 'delete', child: Text('Hapus')),
                         ],
                       ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildStats(post),
-                const Divider(),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [
-                    _buildActionButton(
-                      icon: isLiked ? Icons.favorite : Icons.favorite_border,
-                      label: 'Suka',
-                      color: isLiked ? Colors.red : Colors.grey,
-                      onTap: () =>
-                          _postServices.toggleLike(post.id, _currentUserId),
                     ),
-                    _buildActionButton(
-                      icon: isFavorited ? Icons.star : Icons.star_border,
-                      label: 'Favorit',
-                      color: isFavorited ? Colors.amber : Colors.grey,
-                      onTap: () =>
-                          _postServices.toggleFavorite(post.id, _currentUserId),
-                    ),
-                    _buildActionButton(
-                      icon: Icons.comment_outlined,
-                      label: 'Komentar',
-                      color: Colors.grey,
-                      onTap: () => _openComments(post),
-                    ),
-                    _buildActionButton(
-                      icon: Icons.map_outlined,
-                      label: 'Lihat Map',
-                      color: Colors.green,
-                      onTap: () => _openMap(post),
-                    ),
-                    _buildActionButton(
-                      icon: Icons.share_outlined,
-                      label: 'Share',
-                      color: Colors.blue,
-                      onTap: () => _sharePost(post),
-                    ),
-                  ],
-                ),
+                  ),
               ],
             ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    post.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Palembang',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    post.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _buildStats(post),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _buildActionButton(
+                        icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                        label: 'Suka',
+                        color: isLiked ? Colors.red : null,
+                        onTap: () =>
+                            _postServices.toggleLike(post.id, _currentUserId),
+                      ),
+                      _buildActionButton(
+                        icon: isFavorited ? Icons.star : Icons.star_border,
+                        label: 'Favorit',
+                        color: isFavorited ? Colors.amber : null,
+                        onTap: () => _postServices.toggleFavorite(
+                          post.id,
+                          _currentUserId,
+                        ),
+                      ),
+                      _buildActionButton(
+                        icon: Icons.comment_outlined,
+                        label: 'Komentar',
+                        onTap: () => _openComments(post),
+                      ),
+                      _buildActionButton(
+                        icon: Icons.map_outlined,
+                        label: 'Map',
+                        color: Colors.green,
+                        onTap: () => _openMap(post),
+                      ),
+                      _buildActionButton(
+                        icon: Icons.share_outlined,
+                        label: 'Share',
+                        color: Colors.blue,
+                        onTap: () => _sharePost(post),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHomeHeader(List<Post> posts) {
+    final theme = Theme.of(context);
+    final totalLikes = posts.fold<int>(
+      0,
+      (sum, post) => sum + post.likes.length,
+    );
+    final totalComments = posts.fold<int>(
+      0,
+      (sum, post) => sum + post.comments.length,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1E88E5), Color(0xFFFF9800)],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
           ),
         ],
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: -18,
+            bottom: -28,
+            child: Icon(
+              Icons.sports_score,
+              size: 150,
+              color: Colors.white.withValues(alpha: 0.15),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bowling Finder Palembang',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Temukan arena bowling, lihat lokasi, dan simpan tempat favorit.',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _HeaderMetric(
+                    icon: Icons.place_outlined,
+                    label: 'Venue',
+                    value: '${posts.length}',
+                  ),
+                  _HeaderMetric(
+                    icon: Icons.favorite_border,
+                    label: 'Suka',
+                    value: '$totalLikes',
+                  ),
+                  _HeaderMetric(
+                    icon: Icons.chat_bubble_outline,
+                    label: 'Komentar',
+                    value: '$totalComments',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostsContent(List<Post> posts) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final crossAxisCount = width >= 1100
+            ? 3
+            : width >= 720
+            ? 2
+            : 1;
+
+        final contentSliver = crossAxisCount == 1
+            ? SliverList.separated(
+                itemCount: posts.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 14),
+                itemBuilder: (context, index) => _buildPostCard(posts[index]),
+              )
+            : SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => _buildPostCard(posts[index]),
+                  childCount: posts.length,
+                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.82,
+                ),
+              );
+
+        return CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              sliver: SliverToBoxAdapter(child: _buildHomeHeader(posts)),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+              sliver: contentSliver,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStateMessage({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 62, color: theme.colorScheme.primary),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -506,17 +734,23 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
+            return _buildStateMessage(
+              icon: Icons.error_outline,
+              title: 'Data belum bisa dimuat',
+              message: 'Terjadi kesalahan: ${snapshot.error}',
+            );
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('Belum ada data arena bowling.'));
+            return _buildStateMessage(
+              icon: Icons.sports_score,
+              title: 'Belum ada arena bowling',
+              message:
+                  'Data venue akan tampil di sini setelah admin menambahkannya.',
+            );
           }
 
           final posts = snapshot.data!;
-          return ListView.builder(
-            itemCount: posts.length,
-            itemBuilder: (context, index) => _buildPostCard(posts[index]),
-          );
+          return _buildPostsContent(posts);
         },
       ),
       floatingActionButton: StreamBuilder<firebase_auth.User?>(
@@ -544,6 +778,91 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _StatPill extends StatelessWidget {
+  const _StatPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderMetric extends StatelessWidget {
+  const _HeaderMetric({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.86),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

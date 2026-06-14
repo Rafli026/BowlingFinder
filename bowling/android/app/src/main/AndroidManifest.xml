@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-    <application
         android:label="bowling"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">

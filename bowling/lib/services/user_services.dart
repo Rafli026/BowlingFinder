@@ -1,13 +1,15 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import '../models/user.dart';
 
 class UserServices {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   Future<void> createUser(
     String uid,
@@ -71,28 +73,38 @@ class UserServices {
     Uint8List? photoBytes,
   }) async {
     try {
-      String photoUrl = '';
-
-      if (photoBytes != null) {
-        String fileName = 'profile_$uid';
-        Reference ref = _storage.ref().child('profile_photos').child(fileName);
-        await ref.putData(
-          photoBytes,
-          SettableMetadata(contentType: 'image/jpeg'),
-        );
-        photoUrl = await ref.getDownloadURL();
-      }
-
-      await _firestore.collection('users').doc(uid).update({
-        'displayName': displayName,
-        if (photoUrl.isNotEmpty) 'photoUrl': photoUrl,
-      });
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .set({
+            'displayName': displayName,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true))
+          .timeout(const Duration(seconds: 15));
 
       if (_auth.currentUser?.uid == uid) {
-        await _auth.currentUser?.updateDisplayName(displayName);
-        if (photoUrl.isNotEmpty) {
-          await _auth.currentUser?.updatePhotoURL(photoUrl);
+        await _auth.currentUser
+            ?.updateDisplayName(displayName)
+            .timeout(const Duration(seconds: 10));
+      }
+
+      if (photoBytes != null) {
+        final photoBase64 = base64Encode(photoBytes);
+        if (photoBase64.length > 850000) {
+          throw Exception(
+            'Ukuran foto masih terlalu besar. Coba ambil foto lagi dengan gambar yang lebih ringan.',
+          );
         }
+
+        await _firestore
+            .collection('users')
+            .doc(uid)
+            .set({
+              'photoBase64': photoBase64,
+              'photoUrl': '',
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true))
+            .timeout(const Duration(seconds: 15));
       }
     } catch (e) {
       throw Exception('Gagal update profil: $e');

@@ -90,4 +90,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'bowlingfinder.firebasestorage.app',
     measurementId: 'G-Z7C98J8QT4',
   );
+
 }
