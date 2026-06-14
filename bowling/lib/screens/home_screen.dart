@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final PostServices _postServices = PostServices();
   final UserServices _userServices = UserServices();
   late String _currentUserId;
+  bool _showFavoritesOnly = false;
 
   @override
   void initState() {
@@ -288,6 +289,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPostImage(Post post) {
+    if (post.imageUrl.trim().isEmpty) {
+      return const _BowlingImagePlaceholder();
+    }
+
     if (post.imageUrl.startsWith('data:image')) {
       final base64Data = post.imageUrl.split(',').last;
       return Image.memory(
@@ -304,7 +309,8 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       height: 200,
       fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => _buildBrokenImage(),
+      errorBuilder: (context, error, stackTrace) =>
+          const _BowlingImagePlaceholder(),
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
         return const SizedBox(
@@ -316,15 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBrokenImage() {
-    return const ColoredBox(
-      color: Color(0xFF26242D),
-      child: SizedBox(
-        height: 200,
-        child: Center(
-          child: Icon(Icons.broken_image, size: 60, color: Colors.grey),
-        ),
-      ),
-    );
+    return const _BowlingImagePlaceholder();
   }
 
   Widget _buildPostCard(Post post) {
@@ -503,6 +501,9 @@ class _HomeScreenState extends State<HomeScreen> {
       0,
       (sum, post) => sum + post.likes.length,
     );
+    final favoriteCount = posts
+        .where((post) => post.favorites.contains(_currentUserId))
+        .length;
     final totalComments = posts.fold<int>(
       0,
       (sum, post) => sum + post.comments.length,
@@ -569,6 +570,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     value: '$totalLikes',
                   ),
                   _HeaderMetric(
+                    icon: Icons.star_border,
+                    label: 'Favorit Saya',
+                    value: '$favoriteCount',
+                  ),
+                  _HeaderMetric(
                     icon: Icons.chat_bubble_outline,
                     label: 'Komentar',
                     value: '$totalComments',
@@ -582,7 +588,41 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildViewSwitcher(int favoriteCount) {
+    final theme = Theme.of(context);
+
+    return SegmentedButton<bool>(
+      segments: [
+        ButtonSegment<bool>(
+          value: false,
+          icon: const Icon(Icons.grid_view_rounded),
+          label: const Text('Semua'),
+        ),
+        ButtonSegment<bool>(
+          value: true,
+          icon: const Icon(Icons.star_rounded),
+          label: Text('Favorit ($favoriteCount)'),
+        ),
+      ],
+      selected: {_showFavoritesOnly},
+      onSelectionChanged: (selection) {
+        setState(() => _showFavoritesOnly = selection.first);
+      },
+      style: ButtonStyle(
+        visualDensity: VisualDensity.compact,
+        side: WidgetStatePropertyAll(
+          BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPostsContent(List<Post> posts) {
+    final favoritePosts = posts
+        .where((post) => post.favorites.contains(_currentUserId))
+        .toList();
+    final visiblePosts = _showFavoritesOnly ? favoritePosts : posts;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -594,15 +634,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final contentSliver = crossAxisCount == 1
             ? SliverList.separated(
-                itemCount: posts.length,
+                itemCount: visiblePosts.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 14),
-                itemBuilder: (context, index) => _buildPostCard(posts[index]),
+                itemBuilder: (context, index) =>
+                    _buildPostCard(visiblePosts[index]),
               )
             : SliverGrid(
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) => _buildPostCard(posts[index]),
-                  childCount: posts.length,
+                  (context, index) => _buildPostCard(visiblePosts[index]),
+                  childCount: visiblePosts.length,
                 ),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
@@ -619,9 +660,29 @@ class _HomeScreenState extends State<HomeScreen> {
               sliver: SliverToBoxAdapter(child: _buildHomeHeader(posts)),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-              sliver: contentSliver,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              sliver: SliverToBoxAdapter(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: _buildViewSwitcher(favoritePosts.length),
+                ),
+              ),
             ),
+            if (visiblePosts.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _buildStateMessage(
+                  icon: Icons.star_border_rounded,
+                  title: 'Belum ada favorit',
+                  message:
+                      'Tekan tombol Favorit di venue yang ingin Anda simpan.',
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+                sliver: contentSliver,
+              ),
           ],
         );
       },
@@ -714,6 +775,16 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => widget.onThemeChanged(!widget.isDarkMode),
           ),
           IconButton(
+            icon: Icon(
+              _showFavoritesOnly ? Icons.star : Icons.star_border,
+              color: _showFavoritesOnly ? Colors.amber : null,
+            ),
+            tooltip: _showFavoritesOnly ? 'Tampilkan semua' : 'Favorit saya',
+            onPressed: () {
+              setState(() => _showFavoritesOnly = !_showFavoritesOnly);
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profil',
             onPressed: _openProfile,
@@ -781,6 +852,146 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _BowlingImagePlaceholder extends StatelessWidget {
+  const _BowlingImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 200,
+      child: CustomPaint(
+        painter: _BowlingImagePainter(),
+        child: const Align(
+          alignment: Alignment.bottomLeft,
+          child: Padding(
+            padding: EdgeInsets.all(18),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.sports_score, color: Colors.white, size: 22),
+                SizedBox(width: 8),
+                Text(
+                  'Bowling Venue',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black45,
+                        offset: Offset(0, 1),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BowlingImagePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bg = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF17324D), Color(0xFF246B8F), Color(0xFFFF9800)],
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, bg);
+
+    final lanePaint = Paint()..color = Colors.white.withValues(alpha: 0.18);
+    final lanePath = Path()
+      ..moveTo(size.width * 0.15, size.height)
+      ..lineTo(size.width * 0.44, size.height * 0.2)
+      ..lineTo(size.width * 0.57, size.height * 0.2)
+      ..lineTo(size.width * 0.86, size.height)
+      ..close();
+    canvas.drawPath(lanePath, lanePaint);
+
+    final stripePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.2)
+      ..strokeWidth = 2;
+    for (final x in [0.36, 0.5, 0.64]) {
+      canvas.drawLine(
+        Offset(size.width * 0.5, size.height * 0.22),
+        Offset(size.width * x, size.height),
+        stripePaint,
+      );
+    }
+
+    final pinPaint = Paint()..color = Colors.white.withValues(alpha: 0.92);
+    final pinShadow = Paint()..color = Colors.black.withValues(alpha: 0.16);
+    final accentPaint = Paint()..color = const Color(0xFFE53935);
+    final pinCenters = [
+      Offset(size.width * 0.72, size.height * 0.35),
+      Offset(size.width * 0.67, size.height * 0.48),
+      Offset(size.width * 0.77, size.height * 0.48),
+      Offset(size.width * 0.62, size.height * 0.61),
+      Offset(size.width * 0.72, size.height * 0.61),
+      Offset(size.width * 0.82, size.height * 0.61),
+    ];
+
+    for (final center in pinCenters) {
+      final rect = Rect.fromCenter(
+        center: center,
+        width: size.width * 0.055,
+        height: size.height * 0.22,
+      );
+      final body = RRect.fromRectAndRadius(rect, const Radius.circular(18));
+      canvas.drawRRect(body.shift(const Offset(0, 5)), pinShadow);
+      canvas.drawRRect(body, pinPaint);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(center.dx, center.dy - rect.height * 0.16),
+            width: rect.width * 0.82,
+            height: rect.height * 0.14,
+          ),
+          const Radius.circular(8),
+        ),
+        accentPaint,
+      );
+    }
+
+    final ballCenter = Offset(size.width * 0.28, size.height * 0.58);
+    final ballRadius = size.shortestSide * 0.24;
+    final ballPaint = Paint()
+      ..shader = const RadialGradient(
+        center: Alignment(-0.4, -0.5),
+        radius: 0.9,
+        colors: [Color(0xFF7C4DFF), Color(0xFF241335)],
+      ).createShader(Rect.fromCircle(center: ballCenter, radius: ballRadius));
+    canvas.drawCircle(ballCenter, ballRadius, ballPaint);
+
+    final holePaint = Paint()..color = Colors.black.withValues(alpha: 0.58);
+    canvas.drawCircle(
+      ballCenter + Offset(ballRadius * 0.2, -ballRadius * 0.25),
+      ballRadius * 0.12,
+      holePaint,
+    );
+    canvas.drawCircle(
+      ballCenter + Offset(ballRadius * 0.42, ballRadius * 0.02),
+      ballRadius * 0.1,
+      holePaint,
+    );
+    canvas.drawCircle(
+      ballCenter + Offset(ballRadius * 0.02, ballRadius * 0.1),
+      ballRadius * 0.1,
+      holePaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _StatPill extends StatelessWidget {
